@@ -16,7 +16,7 @@ Paths & global variables
 To run
 ex:
 	python path_to_MAP/MAP.py compute some_sdf.sdf
-	python path_to_MAP/MAP.py compute COc1cccnc1
+	python path_to_MAP/MAP.py compute "COc1cccnc1"
 This will run the calculations to generate all the QM descriptors required. 
 You may want to create a dedicated folder to run in, since the program uses 
 some generic file names. Once the gaussian jobs are done, you can run the 
