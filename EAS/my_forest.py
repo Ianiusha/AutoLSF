@@ -42,7 +42,7 @@ def run_my_forest(X_data):
     class_probability = (my_forest.predict_proba(x))
 
     #print(str(X_data[0]))
-    m = m + 'C_IDX,  PRED_ACTIVITY,   PROBAB_of_INACT, PROBAB_of_ACT \n'
+    m = m + 'C_IDX,  PRED_ACTIVITY, PROBAB_of_INACT, PROBAB_of_ACT \n'
     for i in range(len(predicted_y)):
         m_i = ', '.join([str(int(X_data[i][-1])),  str(predicted_y[i]), "{0:.2f}".format(class_probability[i,0]), "{0:.2f}".format(class_probability[i,1])])
         m = m + m_i + '\n'
@@ -63,9 +63,9 @@ if __name__ == "__main__":
     
 
     filename = sys.argv[1]
-    path_to_model = sys.argv[2]
+    #path_to_model = sys.argv[2]
     
-    run_my_forest(filename, path_to_model)
+    run_my_forest(filename)
 
     print('> DONE.')
 

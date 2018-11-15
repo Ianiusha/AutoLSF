@@ -33,7 +33,7 @@ def generate_color_dict(sure, unsure, very_unsure):
         
     return colors_dict
 
-def prettyOutput(parent_sdf, reactivity_dictionary):
+def prettyOutput(parent_sdf, reactivity_dictionary, name = None):
 
 
     suppl = rdkit.Chem.SDMolSupplier(parent_sdf)
@@ -53,8 +53,11 @@ def prettyOutput(parent_sdf, reactivity_dictionary):
     for highlighted_atom in reactivity_dictionary.keys():
        op.atomLabels[highlighted_atom]= (mol.GetAtomWithIdx(highlighted_atom)).GetSymbol() + str((highlighted_atom+1))
     
-    drawer.DrawMolecule(mol,highlightAtoms= merged_atoms, highlightAtomColors=colors)
+    if name == None:
+        drawer.DrawMolecule(mol,highlightAtoms= merged_atoms, highlightAtomColors=colors)
 
+    else:
+        drawer.DrawMolecule(mol,highlightAtoms= merged_atoms, highlightAtomColors=colors, legend=name )
        
     drawer.FinishDrawing()
     svg = drawer.GetDrawingText()
@@ -84,9 +87,9 @@ def prep_atom_list(reactivity_dictionary):
     if max_probab < 0.50:
         # all carbons were found to be inactive, 
         # make the highest probab carbon active
-        idx = (list(reactivity_dictionary.keys())[list(reactivity_dictionary.values()).index(max_probab)])
-        very_uncertain.append(idx)        
-                
+       
+        very_uncertain = [k for k,v in reactivity_dictionary.items() if v == max_probab]
+               
     #predicted = (sure, uncertain)            
     #print(predicted)            
     return sure, uncertain, very_uncertain

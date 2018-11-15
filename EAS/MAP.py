@@ -35,8 +35,8 @@ def main_01(input_mol):
         try:
             my_molecule = Chem.MolFromSmiles(input_mol)  
 
-        except subprocess.CalledProcessError as exc:
-            print(">> ERROR: cannot read input molecule.", exc.returncode, exc.output)
+        except :
+            print(">> ERROR: cannot read input molecule.")
             return
 
     # CONVERT BACK TO SMILES AND THEN SDF TO HAVE SAME NUMBERING 
@@ -48,7 +48,7 @@ def main_01(input_mol):
 
         # 2. run protonation protocol
         cnames, csmiles, catoms  = rRSQM_support.generate_charged_smiles(my_molecule)
-        print(Chem.MolToMolBlock(Chem.AddHs(Chem.MolFromSmiles(my_smiles))))
+        #print(Chem.MolToMolBlock(Chem.AddHs(Chem.MolFromSmiles(my_smiles))))
         
         if len(csmiles) < 1:
                 print("ERROR: protonation protocol went wrong. Exit.")
@@ -62,7 +62,7 @@ def main_01(input_mol):
         m = m + ( ", ".join(['m', my_smiles]) +" , charge={}".format(str(pcharge)) + '\n')
 
 
-
+        #"""
         ccharge = pcharge + 1
 		
         for cname, csmile, catom in zip(cnames, csmiles, catoms):
@@ -74,7 +74,7 @@ def main_01(input_mol):
                 fw = open('m.files', 'w')
                 fw.write(m)
                 fw.close()
-                
+        #"""        
 
     else:
         print('>> There are no aromatic C-H found in this molecule. Abort.')    
@@ -84,13 +84,14 @@ def main_01(input_mol):
 
 def main_02():
 
-    import MAP_SAS 
+    import MAP_SAS, os 
     from EAS_RF import extractDescriptors
     from my_forest import run_my_forest
     from MAP_PrettyOutput import prettyOutput
 
     MAP_SAS.MAP_computeSAS('parent_OPT.log')   
     my_data = extractDescriptors('parent.sdf')
+    #"""
     run_my_forest(my_data)
 
     fo = open('my_results.txt', 'r')
@@ -106,12 +107,13 @@ def main_02():
                 
            reactivity_dictionary[idx] = probab_of_active
     # make color coded svg
-    labeled_svg = prettyOutput('parent.sdf', reactivity_dictionary)
+    mol_name = ((os.getcwd()).split('/')[-1])    
+    labeled_svg = prettyOutput('parent.sdf', reactivity_dictionary, mol_name)
     with open('labeled_molecule.html', 'w') as f:
         f.write(labeled_svg)
     print(">> Made 2D representation of final molecule in labeled_molecule.html.")
     
-    
+    #"""
     return
 
 

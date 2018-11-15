@@ -12,7 +12,7 @@ from rdkit.Chem import AllChem
 from rdkit.Chem import rdMolDescriptors
 from rdkit.Chem import Draw
 import re
-from openbabel import OBConversion, OBMol
+#from openbabel import OBConversion, OBMol
 import MAP_paths
 
 
@@ -33,7 +33,7 @@ def check_if_aromaticCH(my_mol):
 	
     return found_aromatic_CH
 
-
+"""
 def convert_g09_to_SDF(filename):
     
     
@@ -48,7 +48,7 @@ def convert_g09_to_SDF(filename):
     obConversion.WriteFile(mol, new_file)
     
     return new_file
-
+"""
 
 
 
@@ -62,23 +62,33 @@ def generate_conformations(m, n):
     for i in ids:   
         
         try:
-            
-            ff = AllChem.MMFFGetMoleculeForceField(mol, AllChem.MMFFGetMoleculeProperties(mol), confId=i)
-            ff.Initialize()
-            ff.CalcEnergy()
-            if MAP_paths.MINI_Iterations > 0:
-                AllChem.MMFFOptimizeMolecule(mol, confId=i)
-                results[i] = ff.CalcEnergy()
-                
-        except:
-            
-            ff = AllChem.UFFGetMoleculeForceField(mol, AllChem.UFFGetMoleculeProperties(mol), confId=i)
-            ff.Initialize()
-            ff.CalcEnergy()
-            if MAP_paths.MINI_Iterations > 0:
-                AllChem.UFFOptimizeMolecule(mol, confId=i)
-                results[i] = ff.CalcEnergy()
 
+            if Chem.rdForceFieldHelpers.MMFFHasAllMoleculeParams(mol):
+                #print("MMFF")
+                ff = AllChem.MMFFGetMoleculeForceField(mol, AllChem.MMFFGetMoleculeProperties(mol), confId=i)
+                ff.Initialize()
+                ff.CalcEnergy()
+      
+                if MAP_paths.MINI_Iterations > 0:
+                    AllChem.MMFFOptimizeMolecule(mol, confId=i)
+                    results[i] = ff.CalcEnergy()
+
+            elif Chem.rdForceFieldHelpers.UFFHasAllMoleculeParams(mol): 
+                #print("UFF")
+                ff = AllChem.UFFGetMoleculeForceField(mol, confId=i)
+                ff.Initialize()
+                ff.CalcEnergy()
+                
+                if MAP_paths.MINI_Iterations > 0:
+                    AllChem.UFFOptimizeMolecule(mol, confId=i)
+                    results[i] = ff.CalcEnergy()
+            else:
+                print(">> ERROR: missing force field parameters for atom(s) in your molecule.")
+                return                
+        except:
+            print(">> ERROR: something went wrong in force field minimization.")
+            return
+        
     return mol, results
 
 
@@ -95,9 +105,12 @@ def generate_lowestE_conformer(my_smiles):
     # GENERATE conformers
     my_mol, confID_energies = generate_conformations(m, n_confs)
     
+    #print(confID_energies)
+    
     # find lowest energy ID
     min_conformer_id = min(confID_energies, key=confID_energies.get)
-        
+    #print(min_conformer_id, min(confID_energies.values()))    
+    
     return my_mol, min_conformer_id
 
 
@@ -109,7 +122,7 @@ def get_energy(my_name):
     out_block = ''
     solvationE = 0
     output_name = my_name + '_PM3.log'
-    print(output_name)
+    #print(output_name)
     total_E = 'NA'
 
     fo = open(output_name, 'r')
@@ -119,22 +132,27 @@ def get_energy(my_name):
         # look for solvation energy:
         elif re.search('DeltaG \(solv\)', line):
             solvationE = float(line.split()[-1])
+            #print(solvationE)
     fo.close()
-
+    #print(out_block)
+	
     if not (out_block == ''):
         t = (out_block.split('\\HF='))
-        if len(t) == 2:
-            a = (t[1].split('\\'))[0]
+        #print(len(t))
+        a = (t[-1].split('\\'))[0]
+        #print(output_name, a)
+        #if len(t) == 2:
+            #a = (t[-1].split('\\'))[0]
             # look for a second energy value
-        elif len(t) == 3:
-            a = (t[2].split('\\'))[0]
+        #elif len(t) == 3:
+            #a = (t[2].split('\\'))[0]
 
         H_energy = float(a)
 
         if (H_energy != 0) and (solvationE != 0):
             total_E = (H_energy * MAP_paths.CONVERT_AU2KCAL_MOL + solvationE)
-            # print  (gname, H_energy , solvationE, total_E)
-
+            #print  (gname, H_energy , solvationE, total_E)
+    #print(output_name, total_E)        
     return total_E
 
 

@@ -153,6 +153,7 @@ def submit_g09_job(g09_input, num_CPUs=None, runtime = None, logNAME = None):
      
      try:
          job =  subprocess.check_output(['sbatch', sub]) 
+         #job=sub
          print (job)
      except subprocess.CalledProcessError as exc:
          print(">> Error in running Gaussian job:", exc.returncode, exc.output)  
@@ -181,9 +182,14 @@ def MAP_generate_g09(my_sdf, charge, option):
     file_created = create_gaussianINP(gaussian_name, coordinates, charge, 1, option)
     print('>> ', file_created)
     
-    sub_out = submit_g09_job(file_created, num_CPUs=12, runtime = None, logNAME = None)  
+    if option == 'OPT':
+        CPUs = 12
+    else:
+        CPUs = None
+        
+    sub_out = submit_g09_job(file_created, num_CPUs=CPUs)  
     job_id = (str(sub_out).split()[-1])[:-3]
-    
+    #job_id = 'NAN'
     if not(job_id == 'NAN') and option == "OPT":
         
     # 4. for some options, other files are also required, might as well make them now
@@ -191,7 +197,7 @@ def MAP_generate_g09(my_sdf, charge, option):
         try:
             dependency = ("--dependency=afterok:"+job_id)
             job =  subprocess.check_output(['sbatch', dependency, subscript]) 
-            print (job)
+            #print (job)
 
         except subprocess.CalledProcessError as exc:
             print(">> Error in running Gaussian job:", exc.returncode, exc.output)  

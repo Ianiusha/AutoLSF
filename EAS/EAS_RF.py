@@ -15,7 +15,7 @@ Routine:
 """
 
 import numpy as np
-import re
+import re, csv, os
 from rdkit import Chem
 
 from rRSQM_support import get_energy, get_num_hydrogens
@@ -237,7 +237,7 @@ def get_PM3_energies(my_molecule):
 
     # skip header
     f.readline()
-    p = f.readline()
+    f.readline()
     my_compound_dictionary = {}
     problematic_centers = []
     # read m.files
@@ -248,6 +248,7 @@ def get_PM3_energies(my_molecule):
         reaction_center = int(line[2])
 
         heat = get_energy(name)
+        #print(name, heat, reaction_center) 
 
         if heat == 'NA':
             # something went wrong with the PM3 calculation, cannot include 
@@ -257,22 +258,23 @@ def get_PM3_energies(my_molecule):
             
 
         else:
-            my_compound_dictionary[heat] = [name, reaction_center]
+            my_compound_dictionary[reaction_center] = [heat]
+            
 
     f.close()
 
-    all_heats = np.array(list(my_compound_dictionary.keys()))
+    all_heats = np.array(list(my_compound_dictionary.values()))
     minimum_heat = np.min(all_heats)
     
     # Assign energy to each C-H pair in my_molecule
     # for each reaction center, find all heats, and take the minimum one, assign to that center
 
+    #print(my_compound_dictionary.items())
     for k,v in my_compound_dictionary.items():
         
         #print (k, v)
-        current_heat = k - minimum_heat
-        #n = v[0]
-        rxn_center = v[1]
+        current_heat = v - minimum_heat
+        rxn_center = k
 
         current_atom = my_molecule.GetAtomWithIdx(int(rxn_center))
         current_atom.SetProp('CH_rSQM_E', str(("%.4f" % current_heat)))
@@ -284,6 +286,43 @@ def get_PM3_energies(my_molecule):
         
 
     return my_molecule
+
+
+def get_experimental(molecule_container):
+   
+    
+    # figure out which original sdf to look for
+    current_working_directory = os.getcwd()
+    original_name = (current_working_directory.split('/')[-1]) + '_original.sdf'      
+    # open sdf, and make into molecule
+    original_molecule = (Chem.SDMolSupplier(original_name))[0]
+    
+    # extract rxn sites from original molecule
+    rxn_sites = [int(x)-1 for x in (original_molecule.GetProp('rxn_sites')).split(',')]
+       
+    
+    # map my molecule with original molecule 
+    if molecule_container.HasSubstructMatch(original_molecule):
+        matches = molecule_container.GetSubstructMatch(original_molecule) 
+        print(original_name, rxn_sites, matches)
+        #Those are the atom indices in molecule_container, 
+        #ordered as original_molecule's atoms. 
+        
+    else:
+        print('>> MAJOR ERROR: molecules do not match!', original_name)
+        return
+    # label the experimental positions in molecule object
+    for rs in rxn_sites:
+        reactive_atom = molecule_container.GetAtomWithIdx(matches[rs])        
+        reactive_atom.SetProp('EXP', '1')
+        
+    for atom in molecule_container.GetAtoms():
+        if not atom.HasProp('EXP'):
+           atom.SetProp('EXP', '0') 
+    
+
+    return molecule_container
+
 
 
 def make_feature_file(molecule_container):
@@ -345,7 +384,7 @@ def make_feature_file(molecule_container):
 
                 atom1.SetProp(prop, temp)
                 atom2.SetProp(prop, temp)
-                print("AVERAGED", prop, "for", i, j)
+                #print("AVERAGED", prop, "for", i, j)
     # """
 
     for i in range(total_atoms):
@@ -386,7 +425,7 @@ def extractDescriptors(my_sdf):
     my_molecule = (Chem.SDMolSupplier(my_sdf))[0]
     my_molecule = Chem.AddHs(my_molecule)
     # 2. extract necessary data and add properties to molecule object
-
+    #my_molecule = get_experimental(my_molecule)
     my_molecule = get_DDEC_Qs(my_molecule)
     my_molecule = get_DDEC_BOs(my_molecule)
     my_molecule = get_PM3_energies(my_molecule)
@@ -395,44 +434,62 @@ def extractDescriptors(my_sdf):
 
 
     # 3. compile data together
-    make_feature_file(my_molecule)
+    my_features_file = make_feature_file(my_molecule)
     
-    my_data = compile_data_dictionary(my_molecule)
+    my_data = compile_data_dictionary(my_features_file,my_molecule)
     
     return my_data
 
 
-def compile_data_dictionary(my_molecule):
+def compile_data_dictionary(my_features_csv,my_molecule):
     
-
-    #my_molecule = Chem.RemoveHs(my_molecule)
+           
     descriptors_data = { 'idx':[]}
     
     for d in MAP_paths.ALL_PROPERTIES:
         descriptors_data[d]=[]
     
-    arom_carbons =  my_molecule.GetAromaticAtoms()
+    aromatic =  [a.GetIdx() for a in my_molecule.GetAromaticAtoms()]
     
-    #print(arom_carbons)
-    l = 0
-    for atom in arom_carbons:
-        if atom.GetSymbol() == 'C':
+    #fw = open( '../all_training_data.csv' , 'a')
+    #fw = open( '../all_testing_data.csv' , 'a')
+    current_working_directory = os.getcwd()
+    original_name = (current_working_directory.split('/')[-1])
+    
+    
+    with open(my_features_csv) as csvfile:
+        readCSV = csv.reader(csvfile, delimiter=',')
+        l = 0
+        next(readCSV) # This is needed to skip the header line
+        for row in readCSV:
             
-            if  get_num_hydrogens(atom) == 1:
-                #print(atom.GetIdx())
-                descriptors_data['idx'].append(atom.GetIdx())
-                descriptors_data['Q'].append(atom.GetProp('Q'))
-                descriptors_data['CH_Bond_order'].append(atom.GetProp('CH_Bond_order'))
-                descriptors_data['Bond_orders_sum'].append(atom.GetProp('Bond_orders_sum'))
-                descriptors_data['SAS'].append(atom.GetProp('SAS'))
-                descriptors_data['Fukui'].append(atom.GetProp('Fukui'))
-                descriptors_data['CH_rSQM_E'].append(atom.GetProp('CH_rSQM_E'))
-                l= l+1
+            atom_index = int(row[0])
+            atom = my_molecule.GetAtomWithIdx(atom_index)
+
+            if (atom_index in aromatic) and (atom.GetSymbol() == 'C'):
+                my_neihgbors = [x.GetSymbol() for x in atom.GetNeighbors()]
+                
+                #print(atom_index, atom.GetSymbol(), my_neihgbors)
+                if('H' in my_neihgbors):
+                    
+                    #fw.write(','.join([original_name, str(atom_index), row[2], row[3], row[4],row[5],row[6],row[7],row[8]]))
+                    #fw.write('\n')
+
+                    descriptors_data['idx'].append(float(atom_index))
+                    descriptors_data['Q'].append(float(row[2]))
+                    descriptors_data['CH_Bond_order'].append(float(row[3]))
+                    descriptors_data['Bond_orders_sum'].append(float(row[4]))
+                    descriptors_data['SAS'].append(float(row[5]))
+                    descriptors_data['Fukui'].append(float(row[6]))
+                    descriptors_data['CH_rSQM_E'].append(float(row[7]))
+                    #descriptors_data['EXP'].append(float(row[8]))
+                    l = l + 1
     # add descriptors columns to X in same order as in all_descriptors
     #labels = numpy.array(descriptors_data['labels'])
-    
+    #print(descriptors_data)
     X = np.zeros((len(MAP_paths.ALL_PROPERTIES)+1 , l))
     
+    #fw.close()
     
     for prop in MAP_paths.ALL_PROPERTIES:
         #print (prop,  MAP_paths.ALL_PROPERTIES.index(prop))
@@ -448,11 +505,14 @@ if __name__ == "__main__":
 
     MAP_SAS.MAP_computeSAS('parent_OPT.log')   
     my_data = extractDescriptors('parent.sdf')
+    
+    #"""
     predicted_y, class_probability = run_my_forest(my_data)
     #Draw resulting molecule
     reactivity_dictionary = {}
             
     for i in range(len(predicted_y)):
+        #print(class_probability[i])
         probab_of_active = (class_probability[i][0])
         reactivity_dictionary[i] = probab_of_active
                 
@@ -461,5 +521,7 @@ if __name__ == "__main__":
     with open('labeled_molecule.html', 'w') as f:
         f.write(labeled_svg)
     print(">> Made 2D representation of final molecule in labeled_molecule.html.")
+    #"""
+    
     
     
