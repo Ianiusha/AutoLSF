@@ -29,8 +29,10 @@ CHARGEMOL_PATH="chargemol_09_26_2017"
 RANDOM_FOREST_MODEL = "my_RF_model3_eq.sav"
 
 
+
 " DEFAULT VALUES FOR VARIABLES "
 
+#ALL_PROPERTIES = ['Q', 'CH_Bond_order', 'Bond_orders_sum', 'SAS' , 'Fukui','CH_rSQM_E','EXP']
 ALL_PROPERTIES = ['Q', 'CH_Bond_order', 'Bond_orders_sum', 'SAS' , 'Fukui','CH_rSQM_E']
 
 
@@ -125,7 +127,7 @@ $XYZ
     
     $TITLE - wfx
 
-0 1
+$CHARGE $MULT
 
 $TITLE.wfx
 
@@ -147,7 +149,7 @@ $XYZ
 %NoSave
 #p pm3 Geom=Check Guess=Read scrf=(check,smd,solvent=chloroform,read,externaliteration,dovacuum) 
     
-TITLE.com
+$TITLE.com
 
 $CHARGE $MULT
 
