@@ -24,3 +24,5 @@ following to extract the descriptors and run the random forest model:
 	python path_to_MAP.py extract 
 
 
+NOTE: the experimental results can be found in the sdf files under the label <rxn_sites> for each molecule.
+
