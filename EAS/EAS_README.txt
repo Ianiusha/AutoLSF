@@ -24,5 +24,8 @@ following to extract the descriptors and run the random forest model:
 	python path_to_MAP.py extract 
 
 
-NOTE: the experimental results can be found in the sdf files under the label <rxn_sites> for each molecule.
+NOTE1: the experimental results can be found in the sdf files under the label <rxn_sites> for each molecule.
 
+NOTE2: in the data csv files, the columns correspond to the following:
+
+compound, carbonID, partial charge, C-H bond order, Sum of bond orders around C, SAS, Fukui coefficient, PM3 relative energy, exp label
